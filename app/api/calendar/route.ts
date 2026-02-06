@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   // Default to current month if not provided
   if (!month) {
     const now = getSingaporeNow();
-    month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    month = `${now.year}-${String(now.month).padStart(2, '0')}`;
   }
 
   // Validate month format (YYYY-MM)
