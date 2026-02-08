@@ -4,7 +4,7 @@ import {
   VerifyRegistrationResponseOpts,
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
-import { userDB, authenticatorDB } from '@/lib/db';
+import { userDB, authenticatorDB, tagDB } from '@/lib/db';
 import { createSession, setSessionCookie } from '@/lib/auth';
 
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -42,6 +42,22 @@ export async function POST(request: NextRequest) {
 
     // Create user
     const user = userDB.create(username.trim());
+
+    // Create default tags for the user
+    const defaultTags = [
+      { name: 'Work', color: '#3B82F6' },
+      { name: 'Workout', color: '#EF4444' },
+      { name: 'Learning', color: '#8B5CF6' },
+      { name: 'Reading', color: '#10B981' },
+    ];
+
+    defaultTags.forEach((tag) => {
+      tagDB.create({
+        user_id: user.id,
+        name: tag.name,
+        color: tag.color,
+      });
+    });
 
     // Store authenticator
     authenticatorDB.create({

@@ -117,6 +117,7 @@ export async function PUT(
     // Update the current todo
     const updates: any = {};
     if (body.title !== undefined) updates.title = body.title.trim();
+    if (body.description !== undefined) updates.description = body.description;
     if (body.completed !== undefined) updates.completed = body.completed;
     if (body.due_date !== undefined) updates.due_date = body.due_date;
     if (body.priority !== undefined) updates.priority = body.priority as Priority;

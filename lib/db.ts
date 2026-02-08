@@ -33,6 +33,7 @@ export interface Todo {
   user_id: number;
   list_id: number | null;
   title: string;
+  description: string | null;
   completed: boolean;
   due_date: string | null;
   priority: Priority;
@@ -41,6 +42,7 @@ export interface Todo {
   reminder_minutes: number | null;
   last_notification_sent: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Subtask {
@@ -121,6 +123,7 @@ db.exec(`
     user_id INTEGER NOT NULL,
     list_id INTEGER,
     title TEXT NOT NULL,
+    description TEXT,
     completed BOOLEAN DEFAULT 0,
     due_date TEXT,
     priority TEXT DEFAULT 'medium',
@@ -129,6 +132,7 @@ db.exec(`
     reminder_minutes INTEGER,
     last_notification_sent TEXT,
     created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE SET NULL
   );
@@ -195,6 +199,22 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
+
+// Migration: Add description column to todos table if it doesn't exist
+try {
+  db.exec(`ALTER TABLE todos ADD COLUMN description TEXT;`);
+} catch (e) {
+  // Column already exists
+}
+
+// Migration: Add updated_at column to todos table if it doesn't exist
+try {
+  db.exec(`ALTER TABLE todos ADD COLUMN updated_at TEXT;`);
+  // Update existing rows to set updated_at = created_at
+  db.exec(`UPDATE todos SET updated_at = created_at WHERE updated_at IS NULL;`);
+} catch (e) {
+  // Column already exists
+}
 
 // Migration: Add missing columns to templates table if they don't exist
 try {
@@ -321,14 +341,15 @@ export const todoDB = {
   create(todo: Omit<Todo, 'id' | 'created_at'>): Todo {
     const stmt = db.prepare(`
       INSERT INTO todos (
-        user_id, list_id, title, completed, due_date, priority,
+        user_id, list_id, title, description, completed, due_date, priority,
         is_recurring, recurrence_pattern, reminder_minutes, last_notification_sent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       todo.user_id,
       todo.list_id,
       todo.title,
+      todo.description,
       todo.completed ? 1 : 0,
       todo.due_date,
       todo.priority,
@@ -347,6 +368,10 @@ export const todoDB = {
     if (updates.title !== undefined) {
       fields.push('title = ?');
       values.push(updates.title);
+    }
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
     }
     if (updates.completed !== undefined) {
       fields.push('completed = ?');
@@ -384,6 +409,9 @@ export const todoDB = {
     if (fields.length === 0) {
       return this.getById(id, userId)!;
     }
+
+    // Always update the updated_at timestamp
+    fields.push('updated_at = datetime(\'now\')');
 
     values.push(id, userId);
     const stmt = db.prepare(`UPDATE todos SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`);

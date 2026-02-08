@@ -21,6 +21,7 @@ interface Todo {
   id: number;
   list_id: number | null;
   title: string;
+  description?: string | null;
   completed: boolean;
   due_date: string | null;
   priority: 'high' | 'medium' | 'low';
@@ -30,6 +31,7 @@ interface Todo {
   subtasks: Subtask[];
   tags: Tag[];
   created_at: string;
+  updated_at: string;
 }
 
 interface TaskGroup {
@@ -50,6 +52,7 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [viewTitle, setViewTitle] = useState('Today');
+  const [hideCompleted, setHideCompleted] = useState(false);
 
   useEffect(() => {
     fetchTodos();
@@ -92,13 +95,13 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
 
     switch (activeView) {
       case 'today':
-        return allTodos.filter((t) => t.due_date === today && !t.completed);
+        return allTodos.filter((t) => t.due_date === today);
       case 'next7days':
         return allTodos.filter(
-          (t) => t.due_date && t.due_date >= today && t.due_date <= next7DaysStr && !t.completed
+          (t) => t.due_date && t.due_date >= today && t.due_date <= next7DaysStr
         );
       case 'inbox':
-        return allTodos.filter((t) => !t.list_id && !t.completed);
+        return allTodos.filter((t) => !t.list_id);
       case 'thisweek':
         const weekStart = now.startOf('week');
         const weekEnd = now.endOf('week');
@@ -106,17 +109,16 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
           (t) =>
             t.due_date &&
             t.due_date >= weekStart.toISODate()! &&
-            t.due_date <= weekEnd.toISODate()! &&
-            !t.completed
+            t.due_date <= weekEnd.toISODate()!
         );
       case 'unscheduled':
-        return allTodos.filter((t) => !t.due_date && !t.completed);
+        return allTodos.filter((t) => !t.due_date);
       case 'completed':
         return allTodos.filter((t) => t.completed);
       default:
         if (activeView.startsWith('list-')) {
           const listId = parseInt(activeView.replace('list-', ''));
-          return allTodos.filter((t) => t.list_id === listId && !t.completed);
+          return allTodos.filter((t) => t.list_id === listId);
         }
         return allTodos;
     }
@@ -130,10 +132,14 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
     const next7Days = now.plus({ days: 7 }).toISODate()!;
 
     const grouped: TaskGroup[] = [];
-    const todosByDate: Record<string, Todo[]> = {};
 
-    // Group todos by date
-    todos.forEach((todo) => {
+    // Separate incomplete and completed todos
+    const incompleteTodos = todos.filter(t => !t.completed);
+    const completedTodos = todos.filter(t => t.completed);
+
+    // Group incomplete todos by date
+    const todosByDate: Record<string, Todo[]> = {};
+    incompleteTodos.forEach((todo) => {
       const date = todo.due_date ? todo.due_date.split('T')[0] : 'no-date';
       if (!todosByDate[date]) {
         todosByDate[date] = [];
@@ -141,7 +147,7 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
       todosByDate[date].push(todo);
     });
 
-    // Create groups with proper titles
+    // Create groups for incomplete todos with proper titles
     Object.entries(todosByDate)
       .sort(([a], [b]) => {
         if (a === 'no-date') return 1;
@@ -169,6 +175,16 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
           expanded: true,
         });
       });
+
+    // Add completed group at the end if there are completed todos
+    if (completedTodos.length > 0) {
+      grouped.push({
+        title: 'Completed',
+        date: null,
+        todos: completedTodos,
+        expanded: true,
+      });
+    }
 
     setGroups(grouped);
   };
@@ -267,6 +283,17 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
           </svg>
         </button>
         <h1 className="text-2xl font-semibold text-[#000000] flex-1">{viewTitle}</h1>
+        <button 
+          onClick={() => setHideCompleted(!hideCompleted)}
+          className={`mr-4 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            hideCompleted 
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+          title={hideCompleted ? 'Show completed' : 'Hide completed'}
+        >
+          {hideCompleted ? 'Show' : 'Hide'} completed
+        </button>
         <button className="w-5 h-5 text-[#666666] hover:text-[#000000] mr-4">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -300,7 +327,9 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
 
       {/* Task Groups */}
       <div className="flex-1 overflow-y-auto">
-        {groups.map((group, groupIndex) => (
+        {groups
+          .filter(group => !(hideCompleted && group.title === 'Completed'))
+          .map((group, groupIndex) => (
           <div key={groupIndex} className="mb-4">
             {/* Group Header - 40px height */}
             <button
@@ -334,7 +363,7 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
                         : 'bg-white hover:bg-[#FAFAFA]'
                     }`}
                   >
-                    {/* Checkbox - 20x20px */}
+                    {/* Checkbox */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -345,8 +374,9 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
                           ? 'bg-[#5B7BFF] border-[#5B7BFF]'
                           : 'border-[#CCCCCC] hover:border-[#999999] bg-white'
                       }`}
+                      aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
                     >
-                      {todo.completed && (
+                      {todo.completed ? (
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
@@ -354,11 +384,22 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
                             clipRule="evenodd"
                           />
                         </svg>
-                      )}
+                      ) : null}
                     </button>
 
                     {/* Task Content */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      {/* Priority Indicator */}
+                      <span
+                        className={`w-1 h-4 rounded-full flex-shrink-0 ${
+                          todo.priority === 'high'
+                            ? 'bg-red-500'
+                            : todo.priority === 'medium'
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500'
+                        }`}
+                        title={`Priority: ${todo.priority}`}
+                      />
                       <p
                         className={`text-[15px] leading-5 ${
                           todo.completed
@@ -380,11 +421,11 @@ export function CenterPanel({ activeView, onTaskSelect, selectedTaskId }: Center
                       )}
 
                       {/* Recurring Icon */}
-                      {todo.is_recurring && (
+                      {todo.is_recurring ? (
                         <svg className="w-4 h-4 text-[#999999]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                      )}
+                      ) : null}
 
                       {/* Time Display (HH:MM for same day) */}
                       {formatTaskTime(todo) && (

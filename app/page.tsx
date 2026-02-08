@@ -30,6 +30,7 @@ interface Todo {
   id: number;
   list_id: number | null;
   title: string;
+  description?: string | null;
   completed: boolean;
   due_date: string | null;
   priority: 'high' | 'medium' | 'low';
@@ -39,6 +40,7 @@ interface Todo {
   subtasks: Subtask[];
   tags: Tag[];
   created_at: string;
+  updated_at: string;
 }
 
 export default function HomePage() {
