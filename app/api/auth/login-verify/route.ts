@@ -24,14 +24,22 @@ export async function POST(request: NextRequest) {
     // Get user
     const user = userDB.getByUsername(username.trim());
     if (!user) {
+      console.error('User not found:', username.trim());
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     // Get authenticator by credential ID
-    const credentialId = isoBase64URL.fromBuffer(credential.id);
+    const credentialId = typeof credential.id === 'string' ? credential.id : isoBase64URL.fromBuffer(credential.id);
+    console.log('Looking for credential ID:', credentialId);
     const authenticator = authenticatorDB.getByCredentialId(credentialId);
 
-    if (!authenticator || authenticator.user_id !== user.id) {
+    if (!authenticator) {
+      console.error('Authenticator not found for credential ID:', credentialId);
+      return NextResponse.json({ error: 'Authenticator not found' }, { status: 404 });
+    }
+
+    if (authenticator.user_id !== user.id) {
+      console.error('Authenticator belongs to different user. Expected:', user.id, 'Got:', authenticator.user_id);
       return NextResponse.json({ error: 'Authenticator not found' }, { status: 404 });
     }
 
@@ -54,8 +62,11 @@ export async function POST(request: NextRequest) {
     const verification = await verifyAuthenticationResponse(opts);
 
     if (!verification.verified) {
+      console.error('Authentication verification failed for user:', username);
       return NextResponse.json({ error: 'Authentication verification failed' }, { status: 400 });
     }
+
+    console.log('Authentication successful for user:', username);
 
     // Update counter
     authenticatorDB.updateCounter(authenticator.id, verification.authenticationInfo.newCounter ?? 0);
@@ -67,6 +78,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, user: { id: user.id, username: user.username } });
   } catch (error) {
     console.error('Error verifying authentication:', error);
-    return NextResponse.json({ error: 'Authentication verification failed' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Authentication verification failed';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
