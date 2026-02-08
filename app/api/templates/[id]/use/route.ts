@@ -37,7 +37,9 @@ export async function POST(
   // Create todo from template
   const todo = todoDB.create({
     user_id: session.userId,
+    list_id: null,
     title: template.title_template,
+    description: null,
     completed: false,
     due_date: dueDate,
     priority: template.priority,
@@ -45,6 +47,7 @@ export async function POST(
     recurrence_pattern: template.recurrence_pattern,
     reminder_minutes: template.reminder_minutes,
     last_notification_sent: null,
+    updated_at: new Date().toISOString(),
   });
 
   // Create subtasks if defined in template

@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
 
     const todo = todoDB.create({
       user_id: session.userId,
+      list_id: null,
       title: title.trim(),
+      description: null,
       completed: false,
       due_date: due_date || null,
       priority: (priority as Priority) || 'medium',
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
       recurrence_pattern: (recurrence_pattern as RecurrencePattern) || null,
       reminder_minutes: reminder_minutes || null,
       last_notification_sent: null,
+      updated_at: new Date().toISOString(),
     });
 
     // Attach subtasks and tags

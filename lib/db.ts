@@ -342,8 +342,8 @@ export const todoDB = {
     const stmt = db.prepare(`
       INSERT INTO todos (
         user_id, list_id, title, description, completed, due_date, priority,
-        is_recurring, recurrence_pattern, reminder_minutes, last_notification_sent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        is_recurring, recurrence_pattern, reminder_minutes, last_notification_sent, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       todo.user_id,
@@ -356,7 +356,8 @@ export const todoDB = {
       todo.is_recurring ? 1 : 0,
       todo.recurrence_pattern,
       todo.reminder_minutes,
-      todo.last_notification_sent
+      todo.last_notification_sent,
+      todo.updated_at
     );
     return this.getById(Number(result.lastInsertRowid), todo.user_id)!;
   },
@@ -631,7 +632,7 @@ export const holidayDB = {
 
   create(holiday: Omit<Holiday, 'id' | 'created_at'>): Holiday {
     const stmt = db.prepare('INSERT OR IGNORE INTO holidays (date, name) VALUES (?, ?)');
-    const result = stmt.run(holiday.date, holiday.name);
+    stmt.run(holiday.date, holiday.name);
     return this.getByDate(holiday.date)!;
   },
 

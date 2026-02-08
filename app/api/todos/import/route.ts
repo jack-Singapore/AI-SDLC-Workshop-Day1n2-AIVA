@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     // Create todo with new ID
     const newTodo = todoDB.create({
       user_id: session.userId,
+      list_id: (importTodo as any).list_id || null,
       title: importTodo.title,
+      description: (importTodo as any).description || null,
       completed: importTodo.completed || false,
       due_date: importTodo.due_date || null,
       priority: (importTodo.priority as any) || 'medium',
@@ -51,6 +53,7 @@ export async function POST(request: NextRequest) {
       recurrence_pattern: (importTodo.recurrence_pattern as any) || null,
       reminder_minutes: importTodo.reminder_minutes ?? null,
       last_notification_sent: null, // Reset notification state
+      updated_at: new Date().toISOString(),
     });
 
     // Import subtasks if present

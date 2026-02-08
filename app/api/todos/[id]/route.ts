@@ -86,7 +86,9 @@ export async function PUT(
       // Create next instance with same properties
       const nextTodo = todoDB.create({
         user_id: session.userId,
+        list_id: existingTodo.list_id,
         title: existingTodo.title,
+        description: existingTodo.description,
         completed: false,
         due_date: toSingaporeISO(nextDueDate),
         priority: existingTodo.priority,
@@ -94,6 +96,7 @@ export async function PUT(
         recurrence_pattern: existingTodo.recurrence_pattern,
         reminder_minutes: existingTodo.reminder_minutes,
         last_notification_sent: null,
+        updated_at: new Date().toISOString(),
       });
 
       // Copy subtasks to new instance
